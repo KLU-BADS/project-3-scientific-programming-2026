@@ -9,7 +9,7 @@
 ## Overview
 
 <!-- DESCRIBE PROJECT PURPOSE BELOW -->
-A minimal Julia package helping you to start your project. 
+The project will focus on collaborative logistics, using companies and warehouses around Hamburg as a case study to explore how we can reduce transportation costs by optimizing truck capacity, combining shipments, and improving delivery routes.
 <!-- DESCRIBE PROJECT PURPOSE ABOVE  -->
 
 ## Getting started
