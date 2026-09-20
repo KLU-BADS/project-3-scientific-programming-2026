@@ -1,20 +1,17 @@
 name = "Project3"
 uuid = "a87ea0c4-effc-4c39-b324-814a8a71756c"
-authors = [
-  # use one line per author to ease conflict resolution
-  "Rishi Ram <rishi.ram@stud.klu.org>",
-  "Arth Gupta <arth.gupta@stud.klu.org> guptaarth87",
-  "Mirah Semarandhanu <mirah.semarandhanu@stud.klu.org>",
-  "Rishi Harpreet Singh Jagdev <rishi.jagdev@stud.klu.org>",
-  "Valeria Rendon Corredor <valeria.rendoncorredor@stud.klu.org>"
-]
 version = "0.1.0"
+authors = ["Rishi Ram <rishi.ram@stud.klu.org>", "Arth Gupta <arth.gupta@stud.klu.org> guptaarth87", "Mirah Semarandhanu <mirah.semarandhanu@stud.klu.org>", "Rishi Harpreet Singh Jagdev <rishi.jagdev@stud.klu.org>", "Valeria Rendon Corredor <valeria.rendoncorredor@stud.klu.org>"]
 
-# The docs and test environments are part of this workspace, so they resolve
-# against the same manifest and find this package without being told where it
-# is. Their own dependencies are in docs/Project.toml and test/Project.toml.
 [workspace]
 projects = ["docs", "test"]
 
+[deps]
+Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"
+DotEnv = "4dc1fcf4-5e3b-5448-94ab-0c38ec0385c1"
+Mongoc = "4fe8b98c-fc19-5c23-8ec2-168ff83495f2"
+
 [compat]
+DotEnv = "1.0.0"
+Mongoc = "0.10.1"
 julia = "1.12"
