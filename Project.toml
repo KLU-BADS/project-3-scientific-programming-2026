@@ -1,5 +1,6 @@
 name = "Project3"
 uuid = "a87ea0c4-effc-4c39-b324-814a8a71756c"
+version = "0.1.0"
 authors = [
   # use one line per author to ease conflict resolution
   "Rishi Ram <rishi.ram@stud.klu.org>",
@@ -8,8 +9,7 @@ authors = [
   "Rishi Harpreet Singh Jagdev <rishi.jagdev@stud.klu.org>",
   "Valeria Rendon Corredor <valeria.rendoncorredor@stud.klu.org>"
 ]
-version = "0.1.0"
-authors = ["Rishi Ram <rishi.ram@stud.klu.org>", "Arth Gupta <arth.gupta@stud.klu.org> guptaarth87", "Mirah Semarandhanu <mirah.semarandhanu@stud.klu.org>", "Rishi Harpreet Singh Jagdev <rishi.jagdev@stud.klu.org>", "Valeria Rendon Corredor <valeria.rendoncorredor@stud.klu.org>"]
+
 
 [workspace]
 projects = ["docs", "test"]
