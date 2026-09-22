@@ -1,5 +1,5 @@
 
-## 4. Actor (use case) diagram
+## Actor (use case) diagram
 
 ```mermaid
 flowchart LR
@@ -36,7 +36,7 @@ flowchart LR
   Operator --> UC8
 ```
 
-## 5. Activity (flow) diagram
+## Activity (flow) diagram
 
 ```mermaid
 flowchart TD
