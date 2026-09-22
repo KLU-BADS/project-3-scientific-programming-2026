@@ -1,4 +1,4 @@
-# Project3.jl
+# Collaborative Logistics.jl
 
 <!-- DO NOT EDIT BELOW -->
 [![Tests](../../actions/workflows/tests.yml/badge.svg)](../../actions/workflows/tests.yml)
