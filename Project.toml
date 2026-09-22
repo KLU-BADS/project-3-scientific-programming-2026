@@ -4,7 +4,7 @@ version = "0.1.0"
 authors = [
   # use one line per author to ease conflict resolution
   "Rishi Ram <rishi.ram@stud.klu.org>",
-  "Arth Gupta <arth.gupta@stud.klu.org> guptaarth87",
+  "Arth Gupta <arth.gupta@stud.klu.org>",
   "Mirah Semarandhanu <mirah.semarandhanu@stud.klu.org>",
   "Rishi Harpreet Singh Jagdev <rishi.jagdev@stud.klu.org>",
   "Valeria Rendon Corredor <valeria.rendoncorredor@stud.klu.org>"
