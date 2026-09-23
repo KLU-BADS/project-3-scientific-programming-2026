@@ -1,5 +1,6 @@
 using Documenter
 using DocumenterPlantUML
+using DocumenterMermaid
 using Project3
 
 # Doctests run in a bare module, so the package has to be brought into scope
