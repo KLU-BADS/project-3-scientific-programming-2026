@@ -1,4 +1,5 @@
 using Documenter
+using DocumenterMermaid
 using DocumenterPlantUML
 using DocumenterMermaid
 using Project3

@@ -7,5 +7,6 @@ Project3 = "a87ea0c4-effc-4c39-b324-814a8a71756c"
 
 [compat]
 Documenter = "1"
+DocumenterMermaid = "0.2"
 DocumenterPlantUML = "=0.1.0"
 PlantUML = "=0.1.1"
