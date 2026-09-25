@@ -39,7 +39,11 @@ function _mongo_settings()
 end
 
 "Run an operation with a short-lived MongoDB client and always release it."
+<<<<<<< HEAD
 function _with_collection(collection_name::AbstractString, operation::Function)
+=======
+function _with_collection(operation::Function, collection_name::AbstractString)
+>>>>>>> b05224ed5c9a0884b468c3aade61607d4424fe7f
     isempty(collection_name) && throw(ArgumentError("collection_name cannot be empty."))
     mongo_url, database_name = _mongo_settings()
     client = Mongoc.Client(mongo_url)

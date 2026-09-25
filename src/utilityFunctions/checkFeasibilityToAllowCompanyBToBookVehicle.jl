@@ -13,7 +13,7 @@ function checkFeasibilityToAllowCompanyBToBookVehicle(
 )
     _validate_booking(request)
     max_detour_km >= 0 || throw(ArgumentError("max_detour_km cannot be negative."))
-    request.pallets <= vehicle.remaining_pallet_capacity ||
+    request.pallets <= vehicle.remaining_capacity ||
         return DeliveryFeasibility(false, "Insufficient remaining pallet capacity.", 0.0)
     _windows_overlap(vehicle.pickup_start, vehicle.pickup_end, request.pickup_start, request.pickup_end) ||
         return DeliveryFeasibility(false, "Pickup time windows do not overlap.", 0.0)
