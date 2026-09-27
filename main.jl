@@ -1,7 +1,7 @@
 """
     run_app()
 
-Start the application, verify MongoDB is reachable, then run the sign-up,
+Start the application using its local JSON database, then run the sign-up,
 login, and logout menu.
 """
 
@@ -12,12 +12,12 @@ using Project3
 
 function run_app()
     try
-        users = getAll("users"; pageSize=1)
-        println("MongoDB connection established.")
+        users = getAllListing("users")
+        println("Local JSON database loaded.")
         println("Users collection is $(isempty(users) ? "empty" : "available").")
         run_authentication_cli()
     catch error
-        println(stderr, "Could not connect to MongoDB: $(sprint(showerror, error))")
+        println(stderr, "Application error: $(sprint(showerror, error))")
     end
     return nothing
 end

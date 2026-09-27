@@ -16,10 +16,10 @@ function _parse_role(role::AbstractString)
 end
 
 function _authenticated_user(document)
-    vehicle_id = get(document, "vehicleId", nothing)
+    vehicle_id = get(document, "vehicle_id", nothing)
     return AuthenticatedUser(
-        string(document["_id"]),
-        String(document["userName"]),
+        string(document["id"]),
+        String(document["user_name"]),
         _parse_role(String(document["role"])),
         isnothing(vehicle_id) ? nothing : String(vehicle_id),
     )
@@ -28,7 +28,7 @@ end
 """
     sign_up(user_name, password, role; vehicle_id=nothing) -> AuthenticatedUser
 
-Create a user in MongoDB's `users` collection. Only `VEHICLE_OPERATOR` users
+Create a user in the JSON `users` collection. Only `VEHICLE_OPERATOR` users
 may provide a vehicle ID. The returned value intentionally excludes the stored
 password; use `login` to create a session.
 """
@@ -51,16 +51,18 @@ function sign_up(
         throw(ArgumentError("vehicle_id is only allowed for VEHICLE_OPERATOR."))
     end
 
-    !isempty(getByKeyValue("users", "userName", normalized_user_name; pageSize=1)) &&
+    !isempty(getByKeyValue("users", "user_name", normalized_user_name)) &&
         throw(ArgumentError("a user with this user name already exists."))
 
-    document = Dict{String, Any}(
-        "userName" => normalized_user_name,
-        "password" => String(password),
-        "role" => string(parsed_role),
+    document = User(
+        "",
+        normalized_user_name,
+        String(password),
+        parsed_role,
+        normalized_vehicle_id,
     )
-    !isnothing(normalized_vehicle_id) && (document["vehicleId"] = normalized_vehicle_id)
-    user_id = string(addRecord("users", document))
+    saved_user = addMethod("users", document)
+    user_id = string(saved_user["id"])
     user = AuthenticatedUser(user_id, normalized_user_name, parsed_role, normalized_vehicle_id)
     return user
 end
@@ -68,16 +70,15 @@ end
 """
     login(user_name, password) -> Union{AuthenticatedUser, Nothing}
 
-Validate a user's credentials from MongoDB and create an in-memory session.
+Validate a user's credentials from the JSON database and create an in-memory session.
 """
 function login(user_name::AbstractString, password::AbstractString)
     normalized_user_name = _normalize_user_name(user_name)
     isempty(normalized_user_name) && throw(ArgumentError("user name cannot be empty."))
     isempty(password) && throw(ArgumentError("password cannot be empty."))
 
-    matches = getByKeyValue("users", "userName", normalized_user_name; pageSize=1)
-    isempty(matches) && return nothing
-    user_document = only(matches)
+    user_document = getOneByParameter("users", "user_name", normalized_user_name)
+    isnothing(user_document) && return nothing
     String(password) == String(user_document["password"]) || return nothing
 
     user = _authenticated_user(user_document)
@@ -98,7 +99,7 @@ current_session() = SESSION_COOKIE[]
     authenticate(user_name, password; find_user_by_email, verify_password)
 
 Compatibility helper for repository-injected authentication. New application
-code should call `login` to authenticate against MongoDB.
+code should call `login` to authenticate against the JSON database.
 """
 function authenticate(
     user_name::AbstractString,
