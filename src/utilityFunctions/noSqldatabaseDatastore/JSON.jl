@@ -1,6 +1,6 @@
 using JSON
 
-const DATABASE_PATH = normpath(joinpath(@__DIR__, "..", "..", "..", "..", "noSQLdb", "database.json"))
+const DATABASE_PATH = normpath(joinpath(@__DIR__, "..", "..", "..", "noSQLdb", "database.json"))
 
 function _default_database()
     return Dict(
