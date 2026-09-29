@@ -1,24 +1,44 @@
-"""
-    calculateCost(distance_km, pallets; base_price_cents=10_000,
-                  price_per_km_cents=120, price_per_pallet_cents=200) -> CostQuote
-
-Calculate a transparent price using integer cents, avoiding floating-point money
-rounding errors. Replace the default rates with the pricing policy later.
-"""
 function calculateCost(
-    distance_km::Real,
-    pallets::Integer;
-    base_price_cents::Integer=10_000,
-    price_per_km_cents::Integer=120,
-    price_per_pallet_cents::Integer=200,
-    currency::AbstractString="EUR",
+    vehicleCapacity::Integer,
+    consumedCapacityA::Integer,
+    distanceA::Integer,
+    distanceB::Integer,
+    sharedDistance::Integer,
+    price_per_km_cents::Integer=200,
+    currency::AbstractString="EUR"
 )
-    distance_km >= 0 || throw(ArgumentError("distance_km cannot be negative."))
-    pallets > 0 || throw(ArgumentError("pallets must be greater than zero."))
-    all(>=(0), (base_price_cents, price_per_km_cents, price_per_pallet_cents)) ||
-        throw(ArgumentError("pricing values cannot be negative."))
+    remainingCapacity = vehicleCapacity - consumedCapacityA #Sale de la DB
+    price_in_eur = price_per_km_cents / 100
 
-    distance_charge = round(Int, Float64(distance_km) * price_per_km_cents)
-    total = base_price_cents + distance_charge + pallets * price_per_pallet_cents
-    return CostQuote(total, String(currency), Float64(distance_km), Int(pallets))
+    totalCost = price_in_eur * distanceA * vehicleCapacity
+
+    if sharedDistance == 0  #Realmente no es necesario tener esto
+        return round(Int, totalCost), round(Int, totalCost)
+    end
+
+    sharedCost = price_in_eur * sharedDistance * vehicleCapacity
+    privDistanceA = distanceA - sharedDistance
+    privDistanceB = distanceB - sharedDistance
+
+    sharedPriceA = sharedCost * consumedCapacityA / vehicleCapacity
+    sharedPriceB = sharedCost * remainingCapacity / vehicleCapacity
+
+    costCompanyA = price_in_eur * privDistanceA * vehicleCapacity + sharedPriceA
+    costCompanyB = price_in_eur * privDistanceB * vehicleCapacity + sharedPriceB
+
+    return round(Int, totalCost), round(Int, costCompanyA), round(Int, costCompanyB)
 end
+
+
+vehicleCapacity = 33 #TEST
+consumedCapacityA = 15 #TEST
+distanceA = 100 #TEST
+distanceB = 80 #TEST
+sharedDistance = 40 #TEST
+
+
+totalCost, costCompanyA, costCompanyB = calculateCost(vehicleCapacity, consumedCapacityA, distanceA, distanceB, sharedDistance)
+
+println("Price for only company A: ", totalCost)
+println("Shared price for company A: ", costCompanyA)
+println("Shared price for company B: ", costCompanyB)
