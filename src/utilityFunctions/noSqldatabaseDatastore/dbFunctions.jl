@@ -94,10 +94,6 @@ function addMethod(collection_name::AbstractString, record)
     return document
 end
 
-"""Add and persist a vehicle. Capacity defaults to zero when not supplied."""
-addVehicle(vehicle_name::String, vehicle_capacity::Int=0) =
-    addMethod("vehicles", Vehicle("", vehicle_name, vehicle_capacity))
-
 getByKeyValue(collection_name::AbstractString, key, value) =
     filter(record -> begin
         stored_value = get(record, string(key), nothing)

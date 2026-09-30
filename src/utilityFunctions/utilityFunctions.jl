@@ -6,6 +6,7 @@ using Dates
 include("models.jl")
 include("noSqldatabaseDatastore/JSON.jl")
 include("noSqldatabaseDatastore/dbFunctions.jl")
+include("addVehicle.jl")
 include("calculateCost.jl")
 include("fetchDistance.jl")
 include("checkFeasibilityToAllowCompanyBToBookVehicle.jl")
