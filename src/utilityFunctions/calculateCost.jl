@@ -1,44 +1,23 @@
-function calculateCost(
-    vehicleCapacity::Integer,
-    consumedCapacityA::Integer,
-    distanceA::Integer,
-    distanceB::Integer,
-    sharedDistance::Integer,
-    price_per_km_cents::Integer=200,
-    currency::AbstractString="EUR"
-)
-    remainingCapacity = vehicleCapacity - consumedCapacityA #Sale de la DB
-    price_in_eur = price_per_km_cents / 100
-
-    totalCost = price_in_eur * distanceA * vehicleCapacity
-
-    if sharedDistance == 0  #Realmente no es necesario tener esto
-        return round(Int, totalCost), round(Int, totalCost)
-    end
-
-    sharedCost = price_in_eur * sharedDistance * vehicleCapacity
-    privDistanceA = distanceA - sharedDistance
-    privDistanceB = distanceB - sharedDistance
-
-    sharedPriceA = sharedCost * consumedCapacityA / vehicleCapacity
-    sharedPriceB = sharedCost * remainingCapacity / vehicleCapacity
-
-    costCompanyA = price_in_eur * privDistanceA * vehicleCapacity + sharedPriceA
-    costCompanyB = price_in_eur * privDistanceB * vehicleCapacity + sharedPriceB
-
-    return round(Int, totalCost), round(Int, costCompanyA), round(Int, costCompanyB)
+"""Return solo price, or both parties' prices for a shared trip, in cents."""
+function calculateCost(vehicleCapacity::Integer, consumedCapacityA::Integer,
+    distanceA::Integer, distanceB::Integer, sharedDistance::Integer,
+    price_per_km_cents::Integer=200, currency::AbstractString="EUR")
+    vehicleCapacity > 0 || throw(ArgumentError("vehicle capacity must be positive"))
+    0 <= consumedCapacityA <= vehicleCapacity || throw(ArgumentError("invalid used capacity"))
+    0 <= sharedDistance <= min(distanceA, distanceB) || throw(ArgumentError("invalid shared distance"))
+    solo = round(Int, price_per_km_cents * distanceA * vehicleCapacity)
+    sharedDistance == 0 && return (solo, solo)
+    remaining = vehicleCapacity - consumedCapacityA
+    common = price_per_km_cents * sharedDistance * vehicleCapacity
+    a = price_per_km_cents * (distanceA-sharedDistance) * vehicleCapacity + common*consumedCapacityA/vehicleCapacity
+    b = price_per_km_cents * (distanceB-sharedDistance) * vehicleCapacity + common*remaining/vehicleCapacity
+    return (solo, round(Int, a), round(Int, b))
 end
 
-
-vehicleCapacity = 33 #TEST
-consumedCapacityA = 15 #TEST
-distanceA = 100 #TEST
-distanceB = 80 #TEST
-sharedDistance = 40 #TEST
-
-
-totalCost, costCompanyA, costCompanyB = calculateCost(vehicleCapacity, consumedCapacityA, distanceA, distanceB, sharedDistance)
-
-println("Price for only company A: ", totalCost)
-println("Shared price for company A: ", costCompanyA)
-println("Shared price for company B: ", costCompanyB)
+function calculateCost(distance_km::Real, pallets::Integer; base_price_cents::Integer=100,
+    price_per_km_cents::Integer=10, price_per_pallet_cents::Integer=5)
+    pallets > 0 || throw(ArgumentError("pallets must be positive"))
+    distance_km >= 0 || throw(ArgumentError("distance cannot be negative"))
+    cents = base_price_cents + round(Int, distance_km * price_per_km_cents) + pallets * price_per_pallet_cents
+    return CostQuote(cents, "EUR", Float64(distance_km), Int(pallets))
+end

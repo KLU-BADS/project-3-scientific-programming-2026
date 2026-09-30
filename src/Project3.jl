@@ -5,6 +5,10 @@ A minimal Julia package to start a project from.
 """
 module Project3
 
+using DotEnv
+
+DotEnv.load!(joinpath(dirname(@__DIR__), ".env"))
+
 # Files to be included
 include("hello.jl")
 include("utilityFunctions/utilityFunctions.jl")
