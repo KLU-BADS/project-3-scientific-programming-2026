@@ -38,10 +38,14 @@ function geocodeAddress(address::AbstractString)
         throw(ArgumentError("ORS_API_KEY environment variable is not set."))
 
     response = HTTP.get(
-        ORS_GEOCODE_URL;
-        query = [
-            "text" => String(address)
-        ],
+    ORS_GEOCODE_URL;
+
+    query = [
+        "text" => String(address),
+        "boundary.country" => "DEU",
+        "focus.point.lat" => "53.5511",
+        "focus.point.lon" => "9.9937"
+    ],
         headers = [
             "Authorization" => api_key,
             "Accept" => "application/json"
@@ -49,9 +53,9 @@ function geocodeAddress(address::AbstractString)
     )
 
     response.status == 200 ||
-        throw(ErrorException(
-            "ORS geocoding request failed with status $(response.status)."
-        ))
+    throw(ErrorException(
+        "ORS routing request failed with status $(response.status): $(String(response.body))"
+    ))
 
     data = JSON.parse(String(response.body))
 
@@ -70,34 +74,42 @@ end
 
 
 """
-    orsDistanceProvider(origin, destination) -> Float64
+    _orsRoute(origins, destination) -> NamedTuple
 
-Calculate the heavy-goods-vehicle road distance in kilometres
-between two addresses using openrouteservice.
+Calculate a heavy-goods-vehicle route using openrouteservice.
+
+`origins` is a vector of human-readable addresses. The addresses are routed
+in the supplied order.
+
+Returns:
+- `distance_km`
+- `duration_seconds`
 """
-function orsDistanceProvider(
-    origin::AbstractString,
-    destination::AbstractString
+function _orsRoute(
+    locations::AbstractVector{<:AbstractString}
 )
+    length(locations) >= 2 ||
+        throw(ArgumentError("At least two locations are required."))
+
     api_key = get(ENV, "ORS_API_KEY", "")
 
     isempty(api_key) &&
         throw(ArgumentError("ORS_API_KEY environment variable is not set."))
 
-    origin_coordinates = geocodeAddress(origin)
-    destination_coordinates = geocodeAddress(destination)
+    coordinates = map(locations) do location
+        isempty(strip(location)) &&
+            throw(ArgumentError("location cannot be empty."))
+
+        point = geocodeAddress(location)
+
+        [
+            point.lng,
+            point.lat
+        ]
+    end
 
     body = JSON.json(Dict(
-        "coordinates" => [
-            [
-                origin_coordinates.lng,
-                origin_coordinates.lat
-            ],
-            [
-                destination_coordinates.lng,
-                destination_coordinates.lat
-            ]
-        ]
+        "coordinates" => coordinates
     ))
 
     response = HTTP.post(
@@ -121,12 +133,39 @@ function orsDistanceProvider(
 
     isempty(routes) &&
         throw(ArgumentError(
-            "ORS could not find a route from $origin to $destination."
+            "ORS could not find a route through the supplied locations."
         ))
 
-    distance_m = Float64(routes[1]["summary"]["distance"])
+    summary = routes[1]["summary"]
 
-    return distance_m / 1000
+    distance_m = Float64(summary["distance"])
+    duration_seconds = Float64(summary["duration"])
+
+    isfinite(distance_m) && distance_m >= 0 ||
+        throw(ArgumentError("ORS returned an invalid distance."))
+
+    isfinite(duration_seconds) && duration_seconds >= 0 ||
+        throw(ArgumentError("ORS returned an invalid duration."))
+
+    return (
+        distance_km = distance_m / 1000,
+        duration_seconds = duration_seconds
+    )
+end
+
+
+"""
+    orsDistanceProvider(origin, destination) -> Float64
+
+Calculate the heavy-goods-vehicle road distance in kilometres
+between two addresses using openrouteservice.
+"""
+function orsDistanceProvider(
+    origin::AbstractString,
+    destination::AbstractString
+)
+    route = _orsRoute([origin, destination])
+    return route.distance_km
 end
 
 
