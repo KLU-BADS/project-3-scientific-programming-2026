@@ -7,12 +7,12 @@ function calculateCost(
     price_per_km_cents::Integer=200,
     currency::AbstractString="EUR"
 )
-    remainingCapacity = vehicleCapacity - consumedCapacityA #Sale de la DB
+    remainingCapacity = vehicleCapacity - consumedCapacityA
     price_in_eur = price_per_km_cents / 100
 
     totalCost = price_in_eur * distanceA * vehicleCapacity
 
-    if sharedDistance == 0  #Realmente no es necesario tener esto
+    if sharedDistance == 0  
         return round(Int, totalCost), round(Int, totalCost)
     end
 
