@@ -30,7 +30,7 @@ function calculateCost(
 end
 
 
-vehicleCapacity = 33 #TEST
+vehicleCapacity = 30 #TEST
 consumedCapacityA = 15 #TEST
 distanceA = 100 #TEST
 distanceB = 80 #TEST
