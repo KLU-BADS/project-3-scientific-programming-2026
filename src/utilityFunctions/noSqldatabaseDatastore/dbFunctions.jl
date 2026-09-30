@@ -94,9 +94,15 @@ function addMethod(collection_name::AbstractString, record)
     return document
 end
 
-"""Add and persist a vehicle. Capacity defaults to zero when not supplied."""
-addVehicle(vehicle_name::String, vehicle_capacity::Int=0) =
-    addMethod("vehicles", Vehicle("", vehicle_name, vehicle_capacity))
+"""Add and persist a uniquely named vehicle. Capacity defaults to 30 pallets."""
+function addVehicle(vehicle_name::String, vehicle_capacity::Int=30)
+    name = strip(vehicle_name)
+    isempty(name) && throw(ArgumentError("vehicle name cannot be empty"))
+    vehicle_capacity > 0 || throw(ArgumentError("vehicle capacity must be positive"))
+    any(lowercase(String(get(v, "vehicle_name", get(v, "name", "")))) == lowercase(name) for v in _collection("vehicles")) &&
+        throw(ArgumentError("vehicle name already exists"))
+    return addMethod("vehicles", Vehicle("", name, vehicle_capacity))
+end
 
 getByKeyValue(collection_name::AbstractString, key, value) =
     filter(record -> begin

@@ -22,6 +22,7 @@ const ROLE_FEATURE_MENUS = Dict{UserRole, Vector{Pair{Symbol, String}}}(
         :list_vehicle => "List loading vehicle with remaining capacity",
         :previous_bookings => "View previous bookings",
         :cancel_booking => "Cancel booking",
+        :show_bookings => "Show bookings",
     ],
     VEHICLE_OPERATOR => [
         :vehicle_bookings => "View bookings for my vehicle",
@@ -39,34 +40,181 @@ const SESSION_ACTIONS = [
     :exit => "Exit",
 ]
 
-"Feature placeholder: implement vehicle booking here." 
-_book_loading_vehicle(::AuthenticatedUser, output::IO) = println(output, "Book loading vehicle: not implemented yet.")
+_money(cents) = "€$(round(Float64(cents)/100; digits=2))"
+_party(d) = d["company_a"]
+_active(d) = get(d, "status", "IN_PROGRESS") == "IN_PROGRESS" && isnothing(get(d, "cancelled_at", nothing))
 
-"Feature placeholder: implement vehicle creation here." 
-_add_vehicle(::AuthenticatedUser, output::IO) = println(output, "Add vehicle: not implemented yet.")
+function _prompt_value(input, output, label)
+    value = _prompt(input, output, label)
+    (isnothing(value) || isempty(value)) && throw(ArgumentError("A value is required."))
+    return value
+end
+function _datehour(input, output, label)
+    while true
+        raw = _prompt_value(input, output, label)
+        try
+            m = match(r"^(\d{2}-\d{2}-\d{4})[, ]+([0-2]?\d)(?:-([0-2]?\d))?$", raw)
+            isnothing(m) && error("Use dd-mm-yyyy, HH or dd-mm-yyyy, HH-HH")
+            date = Date(m[1], dateformat"dd-mm-yyyy")
+            hour1 = parse(Int, m[2]); hour2 = isnothing(m[3]) ? hour1 : parse(Int, m[3])
+            0 <= hour1 <= 23 && 0 <= hour2 <= 23 || error("Hours must be from 00 to 23")
+            start = DateTime(date) + Hour(hour1); stop = DateTime(date) + Hour(hour2)
+            stop < start && (stop += Day(1))
+            return start, stop
+        catch e
+            println(output, "Invalid date/time: $(sprint(showerror, e))")
+        end
+    end
+end
+function _save_invoice!(company, amount, vehicle, origin, destination)
+    addMethod("invoices", Invoice(amount, "EUR", "Vehicle operator", origin, destination,
+        vehicle, Date(now()), now(), company))
+end
+function _listing_from_booking(d)
+    a = _party(d)
+    return VehicleListing(String(a["vehicle_id"]), String(d["id"]), String(a["company_id"]),
+        Int(get(d, "remaining_capacity", 0)), Int(get(d, "vehicle_capacity", 30)), String(a["destination"]),
+        String(get(a, "pickup_location", "Port")), DateTime(a["pickup_start"]), DateTime(a["pickup_end"]),
+        DateTime(a["delivery_start"]), DateTime(a["delivery_end"]))
+end
 
-"Feature placeholder: implement remaining-capacity listings here." 
-_list_loading_vehicle(::AuthenticatedUser, output::IO) = println(output, "List loading vehicle: not implemented yet.")
+function _book_loading_vehicle(user::AuthenticatedUser, output::IO; input::IO=stdin)
+    pallets = parse(Int, _prompt_value(input, output, "Pallets required: "))
+    destination = _prompt_value(input, output, "Destination: ")
+    goods = _prompt_value(input, output, "Type of goods: ")
+    ps, pe = _datehour(input, output, "Pickup range (dd-mm-yyyy, HH-HH): ")
+    ds, de = _datehour(input, output, "Delivery range (dd-mm-yyyy, HH-HH): ")
+    req = BookingRequest(user.id, pallets, "Port", destination, goods, ps, pe, ds, de, false)
+    _validate_booking(req)
+    vehicles = filter(getAllListing("vehicles")) do v
+        vid = string(get(v, "vehicle_id", get(v, "id", "")))
+        !any(b -> begin
+            _active(b) || return false
+            a = get(b, "company_a", Dict())
+            string(get(a, "vehicle_id", "")) == vid &&
+                _windows_overlap(DateTime(a["pickup_start"]), DateTime(a["pickup_end"]), ps, pe)
+        end, getAllListing("bookings"))
+    end
+    isempty(vehicles) && (println(output, "No vehicles are registered yet."); return)
+    km = try fetchDistance("Port", destination; provider=orsDistanceProvider) catch; max(1, length(destination)*10) end
+    q = calculateCost(km, pallets)
+    println(output, "\nAvailable new-vehicle quote: $(_money(q.amount_cents)); estimated distance $(round(km; digits=1)) km.")
+    listings = getAllListing("listings")
+    feasible = []
+    for l in listings
+        get(l, "listed_by_company_id", "") == user.id && continue
+        bid = String(get(l, "booking_id", "")); b = getOneByParameter("bookings", "id", bid)
+        (isnothing(b) || !_active(b) || !isnothing(get(b, "company_b", nothing))) && continue
+        Int(get(l, "remaining_capacity", 0)) < pallets && continue
+        listing = try _listing_from_booking(Dict("id"=>bid, "company_a"=>b["company_a"], "remaining_capacity"=>l["remaining_capacity"], "vehicle_capacity"=>l["vehicle_capacity"])) catch; continue end
+        f = try checkFeasibilityToAllowCompanyBToBookVehicle(listing, req; distance_provider=(x,y)-> x==y ? 0.0 : max(1.0, abs(length(x)-length(y))*10.0+10.0)) catch; continue end
+        f.allowed && push!(feasible, (l,b,f))
+    end
+    for (i,(l,b,f)) in enumerate(feasible)
+        println(output, "Shared option $(i): booking $(b["id"]), vehicle $(l["vehicle_id"]), $(l["remaining_capacity"]) pallets left, added route ~$(round(f.additional_distance_km; digits=1)) km.")
+    end
+    println(output, "0. Book a new vehicle")
+    !isempty(feasible) && println(output, "Shared bookings use the quoted estimate $(_money(q.amount_cents)) for your shipment.")
+    choice = tryparse(Int, something(_prompt(input, output, "Choose shared option number or 0: "), "0"))
+    if !isnothing(choice) && 1 <= choice <= length(feasible)
+        l,b,_ = feasible[choice]
+        a = b["company_a"]
+        shared_price = calculateCost(km, pallets).amount_cents
+        party = Dict("company_id"=>user.id,"vehicle_id"=>String(l["vehicle_id"]),"pickup_location"=>"Port",
+            "pickup_start"=>string(ps),"pickup_end"=>string(pe),"delivery_start"=>string(ds),"delivery_end"=>string(de),
+            "pallets_used"=>pallets,"payable_price_cents"=>shared_price,"destination"=>destination,"type_of_good"=>goods)
+        b["company_b"] = party; l["remaining_capacity"] = Int(l["remaining_capacity"])-pallets
+        if l["remaining_capacity"] <= 0
+            filter!(x -> x !== l, getAllListing("listings"))
+            filter!(x -> get(x,"booking_id","") != b["id"], database["listings"])
+        end
+        # Refresh Company A invoice at its quoted original amount; Company B receives a separate invoice.
+        filter!(x -> get(x,"invoice_for_company_id","") != a["company_id"] || get(x,"vehicle_id","") != a["vehicle_id"], database["invoices"])
+        addMethod("invoices", Invoice(Int(a["payable_price_cents"]),"EUR","Vehicle operator",String(get(a,"pickup_location","Port")),String(a["destination"]),String(a["vehicle_id"]),Date(now()),now(),String(a["company_id"])))
+        _save_invoice!(user.id, shared_price, String(l["vehicle_id"]), "Port", destination)
+        save_database(); println(output, "Shared booking confirmed. Booking ID $(b["id"]); your charge $(_money(shared_price)).")
+        return
+    end
+    isempty(vehicles) && return
+    println(output, "Vehicles:")
+    for (i,v) in enumerate(vehicles); println(output, "$(i). $(get(v,"vehicle_name",get(v,"name","Vehicle"))) ($(get(v,"vehicle_capacity",30)) pallets)"); end
+    vi = tryparse(Int, something(_prompt(input, output, "Choose vehicle: "), ""))
+    (isnothing(vi) || !(1 <= vi <= length(vehicles))) && (println(output,"Invalid vehicle selection."); return)
+    vehicle=vehicles[vi]; cap=Int(get(vehicle,"vehicle_capacity",30)); pallets <= cap || (println(output,"That vehicle lacks capacity."); return)
+    price = q.amount_cents
+    party=BookingParty(user.id,String(get(vehicle,"vehicle_id",get(vehicle,"id",""))),ps,pe,ds,de,pallets,price,destination,goods)
+    bdoc=addMethod("bookings",Booking("",now(),nothing,user.id,nothing,party,nothing,IN_PROGRESS))
+    if pallets < cap
+        addMethod("listings",VehicleListing(party.vehicle_id,String(bdoc["id"]),user.id,cap-pallets,cap,destination,"Port",ps,pe,ds,de))
+    end
+    _save_invoice!(user.id,price,party.vehicle_id,"Port",destination)
+    println(output,"Booking confirmed. ID $(bdoc["id"]); charge $(_money(price)); expected delivery by $(de).")
+end
 
-"Feature placeholder: implement company booking history here." 
-_view_previous_bookings(::AuthenticatedUser, output::IO) = println(output, "View previous bookings: not implemented yet.")
+function _add_vehicle(::AuthenticatedUser, output::IO; input::IO=stdin)
+    name = _prompt_value(input, output, "Vehicle name: ")
+    capacity_raw = _prompt(input, output, "Capacity in pallets (default 30): ")
+    capacity = isnothing(capacity_raw) || isempty(capacity_raw) ? 30 : parse(Int, capacity_raw)
+    v = addVehicle(name, capacity); println(output,"Vehicle added with ID $(v["vehicle_id"]) and capacity $capacity.")
+end
 
-"Feature placeholder: implement booking cancellation here." 
-_cancel_booking(::AuthenticatedUser, output::IO) = println(output, "Cancel booking: not implemented yet.")
+function _list_loading_vehicle(user::AuthenticatedUser, output::IO)
+    records=getAllListing("listings"); shown=0
+    for l in records
+        b=getOneByParameter("bookings","id",get(l,"booking_id",""))
+        (isnothing(b) || !_active(b) || !isnothing(get(b,"company_b",nothing)) || String(get(l,"listed_by_company_id",""))==user.id) && continue
+        println(output,"Booking $(b["id"]): vehicle $(l["vehicle_id"]), $(l["remaining_capacity"]) pallets remaining, destination $(l["destination"]), pickup $(l["pickup_start"])–$(l["pickup_end"])"); shown+=1
+    end
+    shown==0 && println(output,"No shareable vehicle capacity is currently available.")
+end
+
+function _view_previous_bookings(user::AuthenticatedUser, output::IO)
+    rows=filter(b -> get(b,"created_by","")==user.id || get(get(b,"company_a",Dict()),"company_id","")==user.id || get(get(b,"company_b",nothing) isa AbstractDict ? b["company_b"] : Dict(),"company_id","")==user.id,getAllListing("bookings"))
+    isempty(rows) && println(output,"No previous bookings.")
+    for b in rows; a=b["company_a"]; println(output,"Booking $(b["id"]) [$(get(b,"status","IN_PROGRESS"))] vehicle $(a["vehicle_id"]), $(a["destination"]), $(a["pallets_used"]) pallets" , isnothing(get(b,"company_b",nothing)) ? "" : " (shared)"); end
+end
+
+function _cancel_booking(user::AuthenticatedUser, output::IO; input::IO=stdin)
+    candidates=filter(b -> get(b,"created_by","")==user.id && _active(b) && isnothing(get(b,"company_b",nothing)),getAllListing("bookings"))
+    isempty(candidates) && (println(output,"No cancellable solo bookings."); return)
+    for b in candidates; println(output,"$(b["id"]). $(b["company_a"]["destination"]) — $(b["company_a"]["vehicle_id"])"); end
+    id=_prompt_value(input,output,"Booking ID to cancel: "); b=getOneByParameter("bookings","id",id)
+    (isnothing(b) || !(b in candidates)) && (println(output,"Booking not found or cannot be cancelled."); return)
+    b["status"]="CANCELLED"; b["cancelled_at"]=string(now()); b["cancelled_by"]=user.id
+    filter!(l -> get(l,"booking_id","") != id,database["listings"]); save_database(); println(output,"Booking cancelled.")
+end
 
 "Feature placeholder: restrict this query to the signed-in operator's vehicle." 
 function _view_vehicle_bookings(user::AuthenticatedUser, output::IO)
-    println(output, "Bookings for vehicle $(user.vehicle_id): not implemented yet.")
+    rows=filter(b -> begin
+        a=get(b,"company_a",Dict()); c=get(b,"company_b",nothing)
+        get(a,"vehicle_id","")==user.vehicle_id || (c isa AbstractDict && get(c,"vehicle_id","")==user.vehicle_id)
+    end,getAllListing("bookings"))
+    isempty(rows) && println(output,"No bookings assigned to your vehicle.")
+    for b in rows
+        a=b["company_a"]
+        println(output,"Booking $(b["id"]) [$(get(b,"status","IN_PROGRESS"))], $(a["destination"]), $(a["pallets_used"]) pallets" , isnothing(get(b,"company_b",nothing)) ? "" : " + shared shipment")
+    end
 end
 
-function _run_feature(action::Symbol, user::AuthenticatedUser, output::IO)
-    action === :add_vehicle && return _add_vehicle(user, output)
-    action === :book_vehicle && return _book_loading_vehicle(user, output)
+function _run_feature(action::Symbol, user::AuthenticatedUser, output::IO; input::IO=stdin)
+    action === :add_vehicle && return _add_vehicle(user, output; input=input)
+    action === :show_bookings && return _show_all_bookings(output)
+    action === :book_vehicle && return _book_loading_vehicle(user, output; input=input)
     action === :list_vehicle && return _list_loading_vehicle(user, output)
     action === :previous_bookings && return _view_previous_bookings(user, output)
-    action === :cancel_booking && return _cancel_booking(user, output)
+    action === :cancel_booking && return _cancel_booking(user, output; input=input)
     action === :vehicle_bookings && return _view_vehicle_bookings(user, output)
     error("Unknown feature action: $action")
+end
+
+function _show_all_bookings(output::IO)
+    rows=getAllListing("bookings")
+    isempty(rows) && println(output,"No bookings recorded.")
+    for b in rows
+        a=get(b,"company_a",Dict())
+        println(output,"Booking $(get(b,"id","?")) [$(get(b,"status","IN_PROGRESS"))], company $(get(a,"company_id","?")), vehicle $(get(a,"vehicle_id","?")), destination $(get(a,"destination","?"))")
+    end
 end
 
 """
@@ -103,7 +251,7 @@ function featureFunctionaility(
             println(output, "Logged out.")
             return :logout
         end
-        _run_feature(action, user, output)
+        _run_feature(action, user, output; input=input)
     end
 end
 
