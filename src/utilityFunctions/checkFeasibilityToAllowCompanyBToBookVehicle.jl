@@ -32,3 +32,71 @@ end
 # Keep the spelling from the initial specification as a compatibility alias.
 checkFeasabilityToAllowCompanyBToBookVehicle(args...; kwargs...) =
     checkFeasibilityToAllowCompanyBToBookVehicle(args...; kwargs...)
+
+
+
+# check remaining pallets capaciy
+if request.pallets > vehicle.remaining_capacity
+    return DeliveryFeasibility(false, "Insufficient remaining pallet capacity.", 0.0)
+end
+
+# check pickup time windows
+if !_windows_overlap(
+    vehicle.pickup_start,
+    vehicle.pickup_end,
+    request.pickup_start,
+    request.pickup_end
+)
+    return DeliveryFeasibility(false, "Pickup time windows do not overlap.", 0.0)
+end
+
+# check delivery time windows
+if !_windows_overlap(
+    vehicle.delivery_start,
+    vehicle.delivery_end,
+    request.delivery_start,
+    request.delivery_end
+)
+    return DeliveryFeasibility(false, "Delivery time windows do not overlap.", 0.0)
+end
+
+# calculate original route
+original_km = fetchDistance(
+    vehicle.origin, 
+    vehicle.destination; 
+    provider=distance_provider
+)
+
+# calculate shared route
+shared_km = fetchDistance(
+    vehicle.origin,
+    request.destination;
+    provider=distance_provider
+) + fetchDistance(
+    request.destination,
+    vehicle.destination;
+    provider=distance_provider
+)
+
+# calculate additional distance
+additional_km = max(
+    0.0, 
+    shared_km - original_km
+)
+
+# check detour
+if additional_km > max_detour_km
+    return DeliveryFeasibility(
+        false, 
+        "Detour exceeds the allowed limit.", 
+        additional_km
+)
+end
+
+# All checks passed, return feasibility
+return DeliveryFeasibility(
+    true,
+    "Vehicle can carry this shipment.",
+    additional_km
+)
+end

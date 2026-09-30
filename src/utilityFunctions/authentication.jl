@@ -1,4 +1,4 @@
-"""The authenticated user for the current command-line application session."""
+´"""The authenticated user for the current command-line application session."""
 const SESSION_COOKIE = Ref{Union{AuthenticatedUser, Nothing}}(nothing)
 
 _normalize_user_name(user_name::AbstractString) = strip(String(user_name))
