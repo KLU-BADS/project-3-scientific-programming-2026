@@ -21,6 +21,11 @@ const ORS_GEOCODE_URL = "https://api.heigit.org/pelias/v1/search"
 const ORS_DIRECTIONS_URL =
     "https://api.heigit.org/openrouteservice/v2/directions/driving-hgv"
 
+# Add a valid OpenRouteService API key here to enable live routing.
+# Keep this blank in shared source control and configure it only on your machine.
+const ORS_API_KEY = "
+eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6IjczN2EwNTIyZjBjZDRiOTJhZWFjYjA2Njk5Y2E4NGYzIiwiaCI6Im11cm11cjY0In0="
+
 
 """
     geocodeAddress(address) -> NamedTuple
@@ -32,10 +37,9 @@ function geocodeAddress(address::AbstractString)
     isempty(strip(address)) &&
         throw(ArgumentError("address cannot be empty."))
 
-    api_key = get(ENV, "ORS_API_KEY", "")
-
+    api_key = ORS_API_KEY
     isempty(api_key) &&
-        throw(ArgumentError("ORS_API_KEY environment variable is not set."))
+        throw(ArgumentError("Set ORS_API_KEY in fetchDistance.jl to enable routing."))
 
     response = HTTP.get(
     ORS_GEOCODE_URL;
@@ -91,10 +95,10 @@ function _orsRoute(
     length(locations) >= 2 ||
         throw(ArgumentError("At least two locations are required."))
 
-    api_key = get(ENV, "ORS_API_KEY", "")
+    api_key = ORS_API_KEY
 
     isempty(api_key) &&
-        throw(ArgumentError("ORS_API_KEY environment variable is not set."))
+        throw(ArgumentError("Set ORS_API_KEY in fetchDistance.jl to enable routing."))
 
     coordinates = map(locations) do location
         isempty(strip(location)) &&

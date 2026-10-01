@@ -14,6 +14,3 @@ Manifest.toml
 .vscode/
 .DS_Store
 
-# Local credentials
-.env
-

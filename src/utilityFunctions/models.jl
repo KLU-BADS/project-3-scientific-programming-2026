@@ -122,7 +122,7 @@ function _validate_booking(booking::BookingRequest)
         throw(ArgumentError("pickup location, destination, and goods type are required."))
     booking.pickup_start <= booking.pickup_end || throw(ArgumentError("pickup time range is invalid."))
     booking.delivery_start <= booking.delivery_end || throw(ArgumentError("delivery time range is invalid."))
-    booking.pickup_end <= booking.delivery_end || throw(ArgumentError("delivery must end after pickup."))
+    booking.pickup_start <= booking.delivery_end || throw(ArgumentError("delivery must be after pickup."))
     return booking
 end
 

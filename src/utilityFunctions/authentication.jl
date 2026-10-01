@@ -1,4 +1,4 @@
-´"""The authenticated user for the current command-line application session."""
+"""The authenticated user for the current command-line application session."""
 const SESSION_COOKIE = Ref{Union{AuthenticatedUser, Nothing}}(nothing)
 
 _normalize_user_name(user_name::AbstractString) = strip(String(user_name))
@@ -47,6 +47,8 @@ function sign_up(
     if parsed_role == VEHICLE_OPERATOR
         (isnothing(normalized_vehicle_id) || isempty(normalized_vehicle_id)) &&
             throw(ArgumentError("vehicle_id is required for VEHICLE_OPERATOR."))
+        isnothing(getVehicle(normalized_vehicle_id)) &&
+            throw(ArgumentError("vehicle_id does not match a registered vehicle."))
     elseif !isnothing(normalized_vehicle_id)
         throw(ArgumentError("vehicle_id is only allowed for VEHICLE_OPERATOR."))
     end
@@ -139,8 +141,17 @@ function run_authentication_cli(; input::IO=stdin, output::IO=stdout)
                 role = _prompt(input, output, "Role (ADMIN, VEHICLE_OPERATOR, COMPANY): ")
                 any(isnothing, (user_name, password, role)) && return nothing
                 parsed_role = _parse_role(role)
-                vehicle_id = parsed_role == VEHICLE_OPERATOR ?
-                    _prompt(input, output, "Vehicle ID: ") : nothing
+                if parsed_role == VEHICLE_OPERATOR
+                    vehicles = getAllListing("vehicles")
+                    println(output, "Registered vehicles:")
+                    for vehicle in vehicles
+                        id = string(get(vehicle, "vehicle_id", get(vehicle, "id", "")))
+                        println(output, "  $id — $(get(vehicle, "vehicle_name", get(vehicle, "name", "Vehicle")))")
+                    end
+                    vehicle_id = _prompt(input, output, "Vehicle ID: ")
+                else
+                    vehicle_id = nothing
+                end
                 user = sign_up(user_name, password, parsed_role; vehicle_id=vehicle_id)
                 println(output, "Sign-up successful. User ID: $(user.id)")
             elseif choice == "2"
@@ -152,7 +163,8 @@ function run_authentication_cli(; input::IO=stdin, output::IO=stdout)
                     println(output, "Invalid user name or password.")
                 else
                     println(output, "Logged in as $(user.user_name). User ID: $(user.id)")
-                    featureFunctionaility(user; input=input, output=output)
+                    action = featureFunctionaility(user; input=input, output=output)
+                    action === :logout && continue
                     return nothing
                 end
             elseif choice == "3"

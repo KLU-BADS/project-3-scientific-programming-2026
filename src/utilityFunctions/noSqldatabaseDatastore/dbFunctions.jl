@@ -95,13 +95,61 @@ function addMethod(collection_name::AbstractString, record)
 end
 
 """Add and persist a uniquely named vehicle. Capacity defaults to 30 pallets."""
-function addVehicle(vehicle_name::String, vehicle_capacity::Int=30)
+function addVehicle(vehicle_name::AbstractString, vehicle_capacity::Integer=30)
     name = strip(vehicle_name)
     isempty(name) && throw(ArgumentError("vehicle name cannot be empty"))
     vehicle_capacity > 0 || throw(ArgumentError("vehicle capacity must be positive"))
     any(lowercase(String(get(v, "vehicle_name", get(v, "name", "")))) == lowercase(name) for v in _collection("vehicles")) &&
         throw(ArgumentError("vehicle name already exists"))
-    return addMethod("vehicles", Vehicle("", name, vehicle_capacity))
+    return addMethod("vehicles", Vehicle("", name, Int(vehicle_capacity)))
+end
+
+"""Fetch a vehicle by ID, accepting IDs from both current and legacy records."""
+function getVehicle(vehicle_id::AbstractString)
+    index = findfirst(v -> string(get(v, "vehicle_id", get(v, "id", ""))) == String(vehicle_id), _collection("vehicles"))
+    return isnothing(index) ? nothing : _collection("vehicles")[index]
+end
+
+"""Fetch a booking by its ID, or return `nothing`."""
+getBooking(booking_id::AbstractString) = getOneByParameter("bookings", "id", booking_id)
+
+"""Fetch bookings, optionally filtered by company, assigned vehicle, or status."""
+function fetchBookings(; company_id=nothing, vehicle_id=nothing, status=nothing)
+    return filter(_collection("bookings")) do booking
+        (isnothing(status) || string(get(booking, "status", "")) == string(status)) || return false
+        a = get(booking, "company_a", Dict())
+        b = get(booking, "company_b", nothing)
+        parties = b isa AbstractDict ? (a, b) : (a,)
+        (isnothing(company_id) || any(p -> string(get(p, "company_id", "")) == string(company_id), parties)) || return false
+        isnothing(vehicle_id) || any(p -> string(get(p, "vehicle_id", "")) == string(vehicle_id), parties)
+    end
+end
+
+"""List live shared-capacity offers whose parent booking is still solo and active."""
+function listVehicleWithRemainingCapacity(; exclude_company_id=nothing)
+    return filter(_collection("listings")) do listing
+        (isnothing(exclude_company_id) || string(get(listing, "listed_by_company_id", "")) != string(exclude_company_id)) || return false
+        booking = getBooking(string(get(listing, "booking_id", "")))
+        !isnothing(booking) && string(get(booking, "status", "IN_PROGRESS")) == "IN_PROGRESS" &&
+            isnothing(get(booking, "cancelled_at", nothing)) && isnothing(get(booking, "company_b", nothing)) &&
+            Int(get(listing, "remaining_capacity", 0)) > 0
+    end
+end
+
+"""Cancel an owned solo booking; shared bookings are deliberately non-cancellable."""
+function cancelBooking(booking_id::AbstractString, user_id::AbstractString)
+    booking = getBooking(booking_id)
+    isnothing(booking) && return false
+    string(get(booking, "created_by", "")) == String(user_id) || return false
+    string(get(booking, "status", "")) == "IN_PROGRESS" || return false
+    isnothing(get(booking, "company_b", nothing)) || return false
+    booking["status"] = "CANCELLED"
+    booking["cancelled_at"] = string(now())
+    booking["cancelled_by"] = String(user_id)
+    filter!(l -> string(get(l, "booking_id", "")) != String(booking_id), _collection("listings"))
+    # Keep the invoice as an audit record; refunds/credit adjustments need a payment ledger.
+    save_database()
+    return true
 end
 
 getByKeyValue(collection_name::AbstractString, key, value) =

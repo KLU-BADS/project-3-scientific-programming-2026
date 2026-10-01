@@ -96,7 +96,13 @@ function _book_loading_vehicle(user::AuthenticatedUser, output::IO; input::IO=st
         end, getAllListing("bookings"))
     end
     isempty(vehicles) && (println(output, "No vehicles are registered yet."); return)
-    km = try fetchDistance("Port", destination; provider=orsDistanceProvider) catch; max(1, length(destination)*10) end
+    km = try
+        fetchDistance("Port", destination; provider=orsDistanceProvider)
+    catch error
+        println(output, "Could not calculate a route: $(sprint(showerror, error))")
+        println(output, "Set ORS_API_KEY in fetchDistance.jl, verify the destination, then try again.")
+        return
+    end
     q = calculateCost(km, pallets)
     println(output, "\nAvailable new-vehicle quote: $(_money(q.amount_cents)); estimated distance $(round(km; digits=1)) km.")
     listings = getAllListing("listings")
@@ -107,7 +113,11 @@ function _book_loading_vehicle(user::AuthenticatedUser, output::IO; input::IO=st
         (isnothing(b) || !_active(b) || !isnothing(get(b, "company_b", nothing))) && continue
         Int(get(l, "remaining_capacity", 0)) < pallets && continue
         listing = try _listing_from_booking(Dict("id"=>bid, "company_a"=>b["company_a"], "remaining_capacity"=>l["remaining_capacity"], "vehicle_capacity"=>l["vehicle_capacity"])) catch; continue end
-        f = try checkFeasibilityToAllowCompanyBToBookVehicle(listing, req; distance_provider=(x,y)-> x==y ? 0.0 : max(1.0, abs(length(x)-length(y))*10.0+10.0)) catch; continue end
+        f = try
+            checkFeasibilityToAllowCompanyBToBookVehicle(listing, req; distance_provider=orsDistanceProvider)
+        catch
+            continue
+        end
         f.allowed && push!(feasible, (l,b,f))
     end
     for (i,(l,b,f)) in enumerate(feasible)
@@ -142,7 +152,7 @@ function _book_loading_vehicle(user::AuthenticatedUser, output::IO; input::IO=st
     (isnothing(vi) || !(1 <= vi <= length(vehicles))) && (println(output,"Invalid vehicle selection."); return)
     vehicle=vehicles[vi]; cap=Int(get(vehicle,"vehicle_capacity",30)); pallets <= cap || (println(output,"That vehicle lacks capacity."); return)
     price = q.amount_cents
-    party=BookingParty(user.id,String(get(vehicle,"vehicle_id",get(vehicle,"id",""))),ps,pe,ds,de,pallets,price,destination,goods)
+    party=BookingParty(user.id,string(get(vehicle,"vehicle_id",get(vehicle,"id",""))),ps,pe,ds,de,pallets,price,destination,goods)
     bdoc=addMethod("bookings",Booking("",now(),nothing,user.id,nothing,party,nothing,IN_PROGRESS))
     if pallets < cap
         addMethod("listings",VehicleListing(party.vehicle_id,String(bdoc["id"]),user.id,cap-pallets,cap,destination,"Port",ps,pe,ds,de))
@@ -155,11 +165,16 @@ function _add_vehicle(::AuthenticatedUser, output::IO; input::IO=stdin)
     name = _prompt_value(input, output, "Vehicle name: ")
     capacity_raw = _prompt(input, output, "Capacity in pallets (default 30): ")
     capacity = isnothing(capacity_raw) || isempty(capacity_raw) ? 30 : parse(Int, capacity_raw)
-    v = addVehicle(name, capacity); println(output,"Vehicle added with ID $(v["vehicle_id"]) and capacity $capacity.")
+    try
+        v = addVehicle(name, capacity)
+        println(output,"Vehicle added with ID $(v["vehicle_id"]) and capacity $capacity.")
+    catch error
+        println(output, "Could not add vehicle: $(sprint(showerror, error))")
+    end
 end
 
 function _list_loading_vehicle(user::AuthenticatedUser, output::IO)
-    records=getAllListing("listings"); shown=0
+    records=listVehicleWithRemainingCapacity(exclude_company_id=user.id); shown=0
     for l in records
         b=getOneByParameter("bookings","id",get(l,"booking_id",""))
         (isnothing(b) || !_active(b) || !isnothing(get(b,"company_b",nothing)) || String(get(l,"listed_by_company_id",""))==user.id) && continue
@@ -175,17 +190,17 @@ function _view_previous_bookings(user::AuthenticatedUser, output::IO)
 end
 
 function _cancel_booking(user::AuthenticatedUser, output::IO; input::IO=stdin)
-    candidates=filter(b -> get(b,"created_by","")==user.id && _active(b) && isnothing(get(b,"company_b",nothing)),getAllListing("bookings"))
+    candidates=filter(b -> string(get(b,"created_by",""))==user.id && _active(b) && isnothing(get(b,"company_b",nothing)),getAllListing("bookings"))
     isempty(candidates) && (println(output,"No cancellable solo bookings."); return)
     for b in candidates; println(output,"$(b["id"]). $(b["company_a"]["destination"]) — $(b["company_a"]["vehicle_id"])"); end
     id=_prompt_value(input,output,"Booking ID to cancel: "); b=getOneByParameter("bookings","id",id)
     (isnothing(b) || !(b in candidates)) && (println(output,"Booking not found or cannot be cancelled."); return)
-    b["status"]="CANCELLED"; b["cancelled_at"]=string(now()); b["cancelled_by"]=user.id
-    filter!(l -> get(l,"booking_id","") != id,database["listings"]); save_database(); println(output,"Booking cancelled.")
+    cancelBooking(id, user.id) || (println(output, "Booking could not be cancelled."); return)
+    println(output,"Booking cancelled.")
 end
 
-"Feature placeholder: restrict this query to the signed-in operator's vehicle." 
 function _view_vehicle_bookings(user::AuthenticatedUser, output::IO)
+    isnothing(user.vehicle_id) && (println(output, "Your account has no assigned vehicle. Contact an administrator."); return)
     rows=filter(b -> begin
         a=get(b,"company_a",Dict()); c=get(b,"company_b",nothing)
         get(a,"vehicle_id","")==user.vehicle_id || (c isa AbstractDict && get(c,"vehicle_id","")==user.vehicle_id)
@@ -251,7 +266,11 @@ function featureFunctionaility(
             println(output, "Logged out.")
             return :logout
         end
-        _run_feature(action, user, output; input=input)
+        try
+            _run_feature(action, user, output; input=input)
+        catch error
+            println(output, "Action failed: $(sprint(showerror, error))")
+        end
     end
 end
 
