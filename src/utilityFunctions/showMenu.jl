@@ -151,13 +151,13 @@ function _book_loading_vehicle(user::AuthenticatedUser, output::IO; input::IO=st
     if !isnothing(choice) && 1 <= choice <= length(feasible)
         l,b,_ = feasible[choice]
         a = b["company_a"]
-        quote = get(shared_quotes, choice, nothing)
-        if isnothing(quote)
+        shared_quote = get(shared_quotes, choice, nothing)
+        if isnothing(shared_quote)
             println(output, "Could not confirm this shared booking because its route price is unavailable.")
             return
         end
-        company_a_shared_price = quote.company_a_price_cents
-        shared_price = quote.company_b_price_cents
+        company_a_shared_price = shared_quote.company_a_price_cents
+        shared_price = shared_quote.company_b_price_cents
         party = Dict("company_id"=>user.id,"vehicle_id"=>String(l["vehicle_id"]),"pickup_location"=>"Port",
             "pickup_start"=>string(ps),"pickup_end"=>string(pe),"delivery_start"=>string(ds),"delivery_end"=>string(de),
             "pallets_used"=>pallets,"payable_price_cents"=>shared_price,"destination"=>destination,"type_of_good"=>goods)
