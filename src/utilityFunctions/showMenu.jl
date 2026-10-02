@@ -55,15 +55,36 @@ _view_previous_bookings(::AuthenticatedUser, output::IO) = println(output, "View
 _cancel_booking(::AuthenticatedUser, output::IO) = println(output, "Cancel booking: not implemented yet.")
 
 "Feature placeholder: restrict this query to the signed-in operator's vehicle." 
+"Feature placeholder: implement vehicle booking here." 
+_book_loading_vehicle(::AuthenticatedUser, output::IO) = println(output, "Book loading vehicle: not implemented yet.")
+
+"Feature placeholder: implement vehicle creation here." 
+_add_vehicle(::AuthenticatedUser, output::IO) = println(output, "Add vehicle: not implemented yet.")
+
+"Feature placeholder: implement remaining-capacity listings here." 
+_list_loading_vehicle(::AuthenticatedUser, output::IO) = println(output, "List loading vehicle: not implemented yet.")
+
+"Feature placeholder: implement company booking history here." 
+_view_previous_bookings(::AuthenticatedUser, output::IO) = println(output, "View previous bookings: not implemented yet.")
+
+"Feature placeholder: implement booking cancellation here." 
+_cancel_booking(::AuthenticatedUser, output::IO) = println(output, "Cancel booking: not implemented yet.")
+
+"Feature placeholder: restrict this query to the signed-in operator's vehicle." 
 function _view_vehicle_bookings(user::AuthenticatedUser, output::IO)
+    println(output, "Bookings for vehicle $(user.vehicle_id): not implemented yet.")
     println(output, "Bookings for vehicle $(user.vehicle_id): not implemented yet.")
 end
 
 function _run_feature(action::Symbol, user::AuthenticatedUser, output::IO)
     action === :add_vehicle && return _add_vehicle(user, output)
     action === :book_vehicle && return _book_loading_vehicle(user, output)
+function _run_feature(action::Symbol, user::AuthenticatedUser, output::IO)
+    action === :add_vehicle && return _add_vehicle(user, output)
+    action === :book_vehicle && return _book_loading_vehicle(user, output)
     action === :list_vehicle && return _list_loading_vehicle(user, output)
     action === :previous_bookings && return _view_previous_bookings(user, output)
+    action === :cancel_booking && return _cancel_booking(user, output)
     action === :cancel_booking && return _cancel_booking(user, output)
     action === :vehicle_bookings && return _view_vehicle_bookings(user, output)
     error("Unknown feature action: $action")
@@ -103,6 +124,7 @@ function featureFunctionaility(
             println(output, "Logged out.")
             return :logout
         end
+        _run_feature(action, user, output)
         _run_feature(action, user, output)
     end
 end
