@@ -1,5 +1,4 @@
 # Julia
-Manifest.toml
 *.jl.cov
 *.jl.*.cov
 *.jl.mem
@@ -14,5 +13,3 @@ Manifest.toml
 .vscode/
 .DS_Store
 
-# Local credentials
-.env
