@@ -66,9 +66,9 @@ function _datehour(input, output, label)
         end
     end
 end
-function _save_invoice!(company, amount, vehicle, origin, destination)
+function _save_invoice!(company, amount, vehicle, origin, destination; booking_id=nothing)
     addMethod("invoices", Invoice(amount, "EUR", "Vehicle operator", origin, destination,
-        vehicle, Date(now()), now(), company))
+        vehicle, Date(now()), now(), company, booking_id))
 end
 function _listing_from_booking(d)
     a = _party(d)
@@ -124,24 +124,58 @@ function _book_loading_vehicle(user::AuthenticatedUser, output::IO; input::IO=st
         println(output, "Shared option $(i): booking $(b["id"]), vehicle $(l["vehicle_id"]), $(l["remaining_capacity"]) pallets left, added route ~$(round(f.additional_distance_km; digits=1)) km.")
     end
     println(output, "0. Book a new vehicle")
-    !isempty(feasible) && println(output, "Shared bookings use the quoted estimate $(_money(q.amount_cents)) for your shipment.")
+    shared_quotes = Dict{Int, NamedTuple}()
+    for (index, (listing_record, booking_record, _)) in enumerate(feasible)
+        company_a = booking_record["company_a"]
+        origin = String(get(company_a, "pickup_location", "Port"))
+        try
+            company_a_route = _orsRoute([origin, String(company_a["destination"])])
+            shared_route = _orsRoute([origin, destination, String(company_a["destination"])])
+            common_distance_km = min(company_a_route.distance_km, shared_route.distance_km)
+            _, company_a_shared_cents, company_b_shared_cents = calculateCost(
+                Int(get(listing_record, "vehicle_capacity", 30)),
+                Int(company_a["pallets_used"]), pallets,
+                common_distance_km, shared_route.distance_km,
+                common_distance_km,
+            )
+            shared_quotes[index] = (
+                company_a_price_cents=company_a_shared_cents,
+                company_b_price_cents=company_b_shared_cents,
+            )
+            println(output, "Shared option $(index) quote: you pay $(_money(company_b_shared_cents)); Company A pays $(_money(company_a_shared_cents)).")
+        catch error
+            println(output, "Shared option $(index) price unavailable: $(sprint(showerror, error))")
+        end
+    end
     choice = tryparse(Int, something(_prompt(input, output, "Choose shared option number or 0: "), "0"))
     if !isnothing(choice) && 1 <= choice <= length(feasible)
         l,b,_ = feasible[choice]
         a = b["company_a"]
-        shared_price = calculateCost(km, pallets).amount_cents
+        quote = get(shared_quotes, choice, nothing)
+        if isnothing(quote)
+            println(output, "Could not confirm this shared booking because its route price is unavailable.")
+            return
+        end
+        company_a_shared_price = quote.company_a_price_cents
+        shared_price = quote.company_b_price_cents
         party = Dict("company_id"=>user.id,"vehicle_id"=>String(l["vehicle_id"]),"pickup_location"=>"Port",
             "pickup_start"=>string(ps),"pickup_end"=>string(pe),"delivery_start"=>string(ds),"delivery_end"=>string(de),
             "pallets_used"=>pallets,"payable_price_cents"=>shared_price,"destination"=>destination,"type_of_good"=>goods)
-        b["company_b"] = party; l["remaining_capacity"] = Int(l["remaining_capacity"])-pallets
-        if l["remaining_capacity"] <= 0
-            filter!(x -> x !== l, getAllListing("listings"))
-            filter!(x -> get(x,"booking_id","") != b["id"], database["listings"])
-        end
-        # Refresh Company A invoice at its quoted original amount; Company B receives a separate invoice.
-        filter!(x -> get(x,"invoice_for_company_id","") != a["company_id"] || get(x,"vehicle_id","") != a["vehicle_id"], database["invoices"])
-        addMethod("invoices", Invoice(Int(a["payable_price_cents"]),"EUR","Vehicle operator",String(get(a,"pickup_location","Port")),String(a["destination"]),String(a["vehicle_id"]),Date(now()),now(),String(a["company_id"])))
-        _save_invoice!(user.id, shared_price, String(l["vehicle_id"]), "Port", destination)
+        b["company_b"] = party
+        a["payable_price_cents"] = company_a_shared_price
+        # This booking allows only one additional company, so consume its listing.
+        filter!(listing_record -> get(listing_record, "booking_id", "") != b["id"], database["listings"])
+        filter!(invoice -> begin
+            same_booking = string(get(invoice, "booking_id", "")) == string(b["id"])
+            legacy_invoice = isnothing(get(invoice, "booking_id", nothing)) &&
+                get(invoice, "invoice_for_company_id", "") == a["company_id"] &&
+                get(invoice, "vehicle_id", "") == a["vehicle_id"] &&
+                get(invoice, "destination", "") == a["destination"]
+            !(same_booking || legacy_invoice)
+        end, database["invoices"])
+        _save_invoice!(String(a["company_id"]), company_a_shared_price, String(a["vehicle_id"]),
+            String(get(a, "pickup_location", "Port")), String(a["destination"]); booking_id=String(b["id"]))
+        _save_invoice!(user.id, shared_price, String(l["vehicle_id"]), "Port", destination; booking_id=String(b["id"]))
         save_database(); println(output, "Shared booking confirmed. Booking ID $(b["id"]); your charge $(_money(shared_price)).")
         return
     end
@@ -157,7 +191,7 @@ function _book_loading_vehicle(user::AuthenticatedUser, output::IO; input::IO=st
     if pallets < cap
         addMethod("listings",VehicleListing(party.vehicle_id,String(bdoc["id"]),user.id,cap-pallets,cap,destination,"Port",ps,pe,ds,de))
     end
-    _save_invoice!(user.id,price,party.vehicle_id,"Port",destination)
+    _save_invoice!(user.id,price,party.vehicle_id,"Port",destination; booking_id=String(bdoc["id"]))
     println(output,"Booking confirmed. ID $(bdoc["id"]); charge $(_money(price)); expected delivery by $(de).")
 end
 
