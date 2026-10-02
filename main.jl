@@ -5,8 +5,12 @@ Start the application using its local JSON database, then run the sign-up,
 login, and logout menu.
 """
 
-# Allow `julia main.jl` to locate this repository's Project.toml and package.
-pushfirst!(LOAD_PATH, @__DIR__)
+# Make `julia main.jl` work from a fresh clone. Dependencies belong to this
+# project, so activate it and install anything declared in Project.toml before
+# loading Project3.
+using Pkg
+Pkg.activate(@__DIR__)
+Pkg.instantiate()
 
 using Project3
 
