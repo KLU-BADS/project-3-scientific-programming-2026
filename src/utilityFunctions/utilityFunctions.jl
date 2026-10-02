@@ -23,6 +23,6 @@ export featureFunctionaility, featureFunctionality
 export sign_up, login, logout!, current_session, run_authentication_cli
 export signUp, logIn, logOut
 export addMethod, addRecord, getAllListing, getAll, getOneByParameter, getByKeyValue
-export addVehicle, save_database
+export addVehicle, getVehicle, getBooking, fetchBookings, cancelBooking, listVehicleWithRemainingCapacity, save_database
 
 end # module UtilityFunctions

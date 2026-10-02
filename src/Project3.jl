@@ -22,7 +22,7 @@ export checkFeasabilityToAllowCompanyBToBookVehicle, fetchDistance, showMenu
 export featureFunctionaility, featureFunctionality
 export sign_up, login, logout!, current_session, run_authentication_cli
 export signUp, logIn, logOut
-export addVehicle, save_database
+export addVehicle, getVehicle, getBooking, fetchBookings, cancelBooking, listVehicleWithRemainingCapacity, save_database
 
 using .UtilityFunctions: UserRole, BookingStatus, ADMIN, VEHICLE_OPERATOR, COMPANY
 using .UtilityFunctions: COMPLETED, IN_PROGRESS, CANCELLED, NO_SHOW
@@ -35,5 +35,6 @@ using .UtilityFunctions: sign_up, login, logout!, current_session, run_authentic
 using .UtilityFunctions: signUp, logIn, logOut
 using .UtilityFunctions: addMethod, addRecord, getAllListing, getAll, getOneByParameter, getByKeyValue
 using .UtilityFunctions: addVehicle, save_database
+using .UtilityFunctions: getVehicle, getBooking, fetchBookings, cancelBooking, listVehicleWithRemainingCapacity
 
 end # module Project3
