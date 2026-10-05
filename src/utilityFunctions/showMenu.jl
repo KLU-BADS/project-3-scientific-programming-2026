@@ -100,7 +100,7 @@ function _book_loading_vehicle(user::AuthenticatedUser, output::IO; input::IO=st
         fetchDistance("Port", destination; provider=orsDistanceProvider)
     catch error
         println(output, "Could not calculate a route: $(sprint(showerror, error))")
-        println(output, "Set ORS_API_KEY in fetchDistance.jl, verify the destination, then try again.")
+        println(output, "Check ORS_API_KEY configuration and the destination, then try again.")
         return
     end
     q = calculateCost(km, pallets)

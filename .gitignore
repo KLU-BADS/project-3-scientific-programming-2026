@@ -12,4 +12,5 @@
 # Editors / OS
 .vscode/
 .DS_Store
+.env
 
