@@ -16,6 +16,9 @@ using Project3
 
 function run_app()
     try
+        # Reload at runtime so the CLI always reads the current JSON file,
+        # including when Julia has loaded a precompiled Project3 module.
+        UtilityFunctions.load_database!()
         users = getAllListing("users")
         println("Local JSON database loaded.")
         println("Users collection is $(isempty(users) ? "empty" : "available").")

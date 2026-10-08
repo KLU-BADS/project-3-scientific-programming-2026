@@ -153,13 +153,32 @@ function _book_loading_vehicle(user::AuthenticatedUser, output::IO; input::IO=st
         bid = String(get(l, "booking_id", "")); b = getOneByParameter("bookings", "id", bid)
         (isnothing(b) || !_active(b) || !isnothing(get(b, "company_b", nothing))) && continue
         Int(get(l, "remaining_capacity", 0)) < pallets && continue
-        listing = try _listing_from_booking(Dict("id"=>bid, "company_a"=>b["company_a"], "remaining_capacity"=>l["remaining_capacity"], "vehicle_capacity"=>l["vehicle_capacity"])) catch; continue end
-        f = try
-            checkFeasibilityToAllowCompanyBToBookVehicle(listing, req; distance_provider=orsDistanceProvider)
-        catch
+        # Current persisted listings call the total-capacity field
+        # `remaining_vehicle_capacity`; accept the older `vehicle_capacity`
+        # spelling too so existing JSON records remain shareable.
+        vehicle_capacity = get(l, "remaining_vehicle_capacity", get(l, "vehicle_capacity", 30))
+        listing = try
+            _listing_from_booking(Dict(
+                "id" => bid,
+                "company_a" => b["company_a"],
+                "remaining_capacity" => l["remaining_capacity"],
+                "vehicle_capacity" => vehicle_capacity,
+            ))
+        catch error
+            println(output, "Shared booking $(bid) skipped: listing data is invalid ($(sprint(showerror, error))).")
             continue
         end
-        f.allowed && push!(feasible, (l,b,f))
+        f = try
+            checkFeasibilityToAllowCompanyBToBookVehicle(listing, req; distance_provider=orsDistanceProvider)
+        catch error
+            println(output, "Shared booking $(bid) skipped: route check failed ($(sprint(showerror, error))).")
+            continue
+        end
+        if f.allowed
+            push!(feasible, (l,b,f))
+        else
+            println(output, "Shared booking $(bid) unavailable: $(f.reason)")
+        end
     end
     for (i,(l,b,f)) in enumerate(feasible)
         println(output, "Shared option $(i): booking $(b["id"]), vehicle $(l["vehicle_id"]), $(l["remaining_capacity"]) pallets left, added route ~$(round(f.additional_distance_km; digits=1)) km.")
