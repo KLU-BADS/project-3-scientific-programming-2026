@@ -40,6 +40,32 @@ const SESSION_ACTIONS = [
     :exit => "Exit",
 ]
 
+# Keep booking destinations to this shared set so route lookups use consistent
+# address strings. Some addresses intentionally appear more than once in the
+# supplied choices because they are used by multiple route pairs.
+const BOOKING_DESTINATIONS = [
+    "Hachmannplatz 16, 20099 Hamburg, Germany",
+    "Steintorplatz 1, 20099 Hamburg, Germany",
+    "Hachmannplatz 16, 20099 Hamburg, Germany",
+    "Amsinckstraße 47, 20097 Hamburg, Germany",
+    "Am Sandtorkai 1, 20457 Hamburg, Germany",
+    "Brooktorkai 20, 20457 Hamburg, Germany",
+    "Am Sandtorkai 1, 20457 Hamburg, Germany",
+    "Baumwall 7, 20459 Hamburg, Germany",
+    "Altonaer Bahnhof, Paul-Nevermann-Platz 15, 22765 Hamburg, Germany",
+    "Max-Brauer-Allee 59, 22765 Hamburg, Germany",
+    "Hachmannplatz 16, 20099 Hamburg, Germany",
+    "Lange Reihe 29, 20099 Hamburg, Germany",
+    "Am Sandtorkai 1, 20457 Hamburg, Germany",
+    "Überseeallee 10, 20457 Hamburg, Germany",
+    "Mönckebergstraße 11, 20095 Hamburg, Germany",
+    "Spitalerstraße 22, 20095 Hamburg, Germany",
+    "Willy-Brandt-Straße 59, 20457 Hamburg, Germany",
+    "Rödingsmarkt 16, 20459 Hamburg, Germany",
+    "HafenCity Universität, Überseeallee 16, 20457 Hamburg, Germany",
+    "Am Sandtorkai 1, 20457 Hamburg, Germany",
+]
+
 _money(cents) = "€$(round(Float64(cents)/100; digits=2))"
 _party(d) = d["company_a"]
 _active(d) = get(d, "status", "IN_PROGRESS") == "IN_PROGRESS" && isnothing(get(d, "cancelled_at", nothing))
@@ -48,6 +74,21 @@ function _prompt_value(input, output, label)
     value = _prompt(input, output, label)
     (isnothing(value) || isempty(value)) && throw(ArgumentError("A value is required."))
     return value
+end
+function _choose_booking_destination(input::IO, output::IO)
+    println(output, "Choose a destination by number:")
+    for (number, address) in enumerate(BOOKING_DESTINATIONS)
+        println(output, "$(number). $(address)")
+    end
+    while true
+        raw = _prompt(input, output, "Destination number: ")
+        isnothing(raw) && throw(ArgumentError("Destination selection cancelled."))
+        choice = tryparse(Int, strip(raw))
+        if !isnothing(choice) && 1 <= choice <= length(BOOKING_DESTINATIONS)
+            return BOOKING_DESTINATIONS[choice]
+        end
+        println(output, "Enter a number from 1 to $(length(BOOKING_DESTINATIONS)).")
+    end
 end
 function _datehour(input, output, label)
     while true
@@ -80,7 +121,7 @@ end
 
 function _book_loading_vehicle(user::AuthenticatedUser, output::IO; input::IO=stdin)
     pallets = parse(Int, _prompt_value(input, output, "Pallets required: "))
-    destination = _prompt_value(input, output, "Destination: ")
+    destination = _choose_booking_destination(input, output)
     goods = _prompt_value(input, output, "Type of goods: ")
     ps, pe = _datehour(input, output, "Pickup range (dd-mm-yyyy, HH-HH): ")
     ds, de = _datehour(input, output, "Delivery range (dd-mm-yyyy, HH-HH): ")
