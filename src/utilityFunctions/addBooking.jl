@@ -3,7 +3,7 @@
 
 Validate a booking and delegate persistence to `save_booking!`. The callback
 receives the validated `BookingRequest` and must return the new record ID. This
-keeps MongoDB and business rules independent.
+keeps persistence and business rules independent.
 """
 function addBooking(booking::BookingRequest; save_booking!::Function)
     _validate_booking(booking)
