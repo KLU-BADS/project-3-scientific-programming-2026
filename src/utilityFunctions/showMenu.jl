@@ -46,24 +46,19 @@ const SESSION_ACTIONS = [
 const BOOKING_DESTINATIONS = [
     "Hachmannplatz 16, 20099 Hamburg, Germany",
     "Steintorplatz 1, 20099 Hamburg, Germany",
-    "Hachmannplatz 16, 20099 Hamburg, Germany",
     "Amsinckstraße 47, 20097 Hamburg, Germany",
     "Am Sandtorkai 1, 20457 Hamburg, Germany",
     "Brooktorkai 20, 20457 Hamburg, Germany",
-    "Am Sandtorkai 1, 20457 Hamburg, Germany",
     "Baumwall 7, 20459 Hamburg, Germany",
     "Altonaer Bahnhof, Paul-Nevermann-Platz 15, 22765 Hamburg, Germany",
     "Max-Brauer-Allee 59, 22765 Hamburg, Germany",
-    "Hachmannplatz 16, 20099 Hamburg, Germany",
     "Lange Reihe 29, 20099 Hamburg, Germany",
-    "Am Sandtorkai 1, 20457 Hamburg, Germany",
     "Überseeallee 10, 20457 Hamburg, Germany",
     "Mönckebergstraße 11, 20095 Hamburg, Germany",
     "Spitalerstraße 22, 20095 Hamburg, Germany",
     "Willy-Brandt-Straße 59, 20457 Hamburg, Germany",
     "Rödingsmarkt 16, 20459 Hamburg, Germany",
     "HafenCity Universität, Überseeallee 16, 20457 Hamburg, Germany",
-    "Am Sandtorkai 1, 20457 Hamburg, Germany",
 ]
 
 _money(cents) = "€$(round(Float64(cents)/100; digits=2))"
