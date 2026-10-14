@@ -41,8 +41,7 @@ Once the package is cloned you can run:
 
 ```julia
 using Project3
-julia main.jl 
-# or
+
 julia --compiled-modules=no main.jl
 ```
 to run program
@@ -76,6 +75,15 @@ The [online documentation](https://klu-bads.github.io/project-3-scientific-progr
 >
 > If building the documentation fails, run the tests locally before. 
 
+## User flow in five steps
+
+1. **Start and sign in:** Run `julia main.jl`. Choose **Sign up** to create an account, or **Log in** if you already have one.
+2. **Choose an account role:** Sign up as `COMPANY`, `ADMIN`, or `VEHICLE_OPERATOR`. Vehicle operators must be assigned an already registered vehicle. After signup, log in with the new account.
+3. **Open the role menu:** Companies and administrators can book shipments and review capacity. Administrators can also add vehicles and view all bookings. Vehicle operators can view bookings assigned to their vehicle.
+4. **Book or share a shipment:** Enter pallets, destination, goods type, and pickup and delivery time windows. Review the route quote, then choose an available shared booking or book a new vehicle. Unused capacity may be offered to another company.
+5. **Manage bookings:** Review your bookings, check available shared capacity, or cancel an eligible solo booking. Log out or exit when finished.
+
+For the full project documentation, see the [documentation landing page](docs/src/index.md).
 
 <!-- DO NOT EDIT ABOVE -->
 
