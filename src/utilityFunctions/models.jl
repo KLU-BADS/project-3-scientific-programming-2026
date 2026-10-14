@@ -100,7 +100,14 @@ struct Invoice
     date::Date
     created_on::DateTime
     invoice_for_company_id::String
+    booking_id::Union{String, Nothing}
 end
+
+# Keep existing invoice constructors source-compatible with records that predate booking IDs.
+Invoice(amount_cents::Int, currency::String, pay_to::String, origin::String,
+    destination::String, vehicle_id::String, date::Date, created_on::DateTime,
+    invoice_for_company_id::String) = Invoice(amount_cents, currency, pay_to, origin,
+    destination, vehicle_id, date, created_on, invoice_for_company_id, nothing)
 
 struct CostQuote
     amount_cents::Int
@@ -122,7 +129,7 @@ function _validate_booking(booking::BookingRequest)
         throw(ArgumentError("pickup location, destination, and goods type are required."))
     booking.pickup_start <= booking.pickup_end || throw(ArgumentError("pickup time range is invalid."))
     booking.delivery_start <= booking.delivery_end || throw(ArgumentError("delivery time range is invalid."))
-    booking.pickup_end <= booking.delivery_end || throw(ArgumentError("delivery must end after pickup."))
+    booking.pickup_start <= booking.delivery_end || throw(ArgumentError("delivery must be after pickup."))
     return booking
 end
 

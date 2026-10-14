@@ -30,9 +30,11 @@ Once the package is cloned you can run:
 
 ```julia
 using Project3
-hello()
+julia main.jl 
+# or
+julia --compiled-modules=no main.jl
 ```
-to print "Hello World" to standard output.
+to run program
 <!-- DESCRIBE THE ESSENTIAL USAGE ABOVE -->
 
 ## Tests
