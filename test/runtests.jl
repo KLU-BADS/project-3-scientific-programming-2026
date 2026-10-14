@@ -2,6 +2,9 @@ using Project3
 using Test
 using Dates
 
+include("test_vehicle.jl")
+include("test_authentication.jl")
+
 # Every @testset that fails will be reported individually, so give them
 # names that tell you what broke.
 
@@ -31,7 +34,7 @@ using Dates
         try
             user_document = addMethod("users", User("", "datastore-test", "secret", COMPANY, nothing))
             @test getOneByParameter("users", :user_name, "datastore-test") == user_document
-            @test only(getAllListing("users")) == user_document
+            @test user_document in getAllListing("users")
             @test login("datastore-test", "secret").id == user_document["id"]
             @test login("datastore-test", "incorrect") === nothing
 

@@ -7,6 +7,10 @@ function _parse_role(role::UserRole)
     return role
 end
 
+"""
+ Convert text like '"VEHICLE_OPERATOR"' into a "UserRole".
+ Thorws 'ArgumentError' if the text is not ADMIN, VEHICLE_OPERATOR, or COMPANY.
+ """ 
 function _parse_role(role::AbstractString)
     normalized_role = replace(uppercase(strip(role)), '-' => '_', ' ' => '_')
     normalized_role == "ADMIN" && return ADMIN
@@ -15,6 +19,7 @@ function _parse_role(role::AbstractString)
     throw(ArgumentError("role must be ADMIN, VEHICLE_OPERATOR, or COMPANY."))
 end
 
+""" Builds an 'AuthenticatedUser' from a stored user document """
 function _authenticated_user(document)
     vehicle_id = get(document, "vehicle_id", nothing)
     return AuthenticatedUser(
@@ -120,6 +125,9 @@ function authenticate(
     return user
 end
 
+""" Print 'label', then read one line from 'input' with spaces removed.
+Returns 'nothing' when the input has ended.
+"""
 function _prompt(input::IO, output::IO, label::AbstractString)
     print(output, label)
     flush(output)
