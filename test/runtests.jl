@@ -29,6 +29,10 @@ using Dates
         original_file = read(datastore.DATABASE_PATH, String)
 
         try
+            # These assertions expect isolated collections, regardless of the
+            # sample records checked into noSQLdb/database.json.
+            datastore.database = datastore._default_database()
+
             user_document = addMethod("users", User("", "datastore-test", "secret", COMPANY, nothing))
             @test getOneByParameter("users", :user_name, "datastore-test") == user_document
             @test only(getAllListing("users")) == user_document
