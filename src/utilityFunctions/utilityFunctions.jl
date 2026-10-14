@@ -2,9 +2,10 @@
 module UtilityFunctions
 
 using Dates
-using ..MongoDataStore: addRecord, getByKeyValue
 
 include("models.jl")
+include("noSqldatabaseDatastore/JSON.jl")
+include("noSqldatabaseDatastore/dbFunctions.jl")
 include("calculateCost.jl")
 include("fetchDistance.jl")
 include("checkFeasibilityToAllowCompanyBToBookVehicle.jl")
@@ -21,5 +22,7 @@ export checkFeasabilityToAllowCompanyBToBookVehicle, fetchDistance, showMenu
 export featureFunctionaility, featureFunctionality
 export sign_up, login, logout!, current_session, run_authentication_cli
 export signUp, logIn, logOut
+export addMethod, addRecord, getAllListing, getAll, getOneByParameter, getByKeyValue
+export addVehicle, getVehicle, getBooking, fetchBookings, cancelBooking, listVehicleWithRemainingCapacity, save_database
 
 end # module UtilityFunctions
