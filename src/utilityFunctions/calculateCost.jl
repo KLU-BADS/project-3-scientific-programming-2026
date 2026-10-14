@@ -3,6 +3,7 @@ function calculateCost(vehicle_capacity::Integer, company_a_pallets::Integer,
     company_b_pallets::Integer, company_a_distance_km::Real,
     company_b_distance_km::Real, shared_distance_km::Real;
     price_per_km_cents::Integer=200)
+    # Validate capacity and route inputs before doing any price calculations.
     vehicle_capacity > 0 || throw(ArgumentError("vehicle capacity must be positive"))
     0 <= company_a_pallets <= vehicle_capacity ||
         throw(ArgumentError("invalid Company A pallet count"))
@@ -23,12 +24,15 @@ function calculateCost(vehicle_capacity::Integer, company_a_pallets::Integer,
 
     solo_price_cents = round(Int, company_a_distance_km * price_per_km_cents)
     if shared_distance_km == 0
+        # With no common segment, each company pays for its own full route.
         company_a_price_cents = round(Int, company_a_distance_km * price_per_km_cents)
         company_b_price_cents = round(Int, company_b_distance_km * price_per_km_cents)
         return (solo_price_cents, company_a_price_cents, company_b_price_cents)
     end
 
     total_pallets = company_a_pallets + company_b_pallets
+    # Charge each company its exclusive route in full, then split the common
+    # route cost in proportion to the pallets carried for each company.
     common_route_cost_cents = shared_distance_km * price_per_km_cents
     company_a_price_cents = (company_a_distance_km - shared_distance_km) * price_per_km_cents +
         common_route_cost_cents * company_a_pallets / total_pallets
@@ -39,10 +43,12 @@ end
 
 function calculateCost(distance_km::Real, pallets::Integer; base_price_cents::Integer=0,
     price_per_km_cents::Integer=200, price_per_pallet_cents::Integer=0)
+    # Reject unusable shipment inputs before building the quote.
     pallets > 0 || throw(ArgumentError("pallets must be positive"))
     isfinite(distance_km) && distance_km >= 0 ||
         throw(ArgumentError("distance must be finite and non-negative"))
     cents = base_price_cents + round(Int, distance_km * price_per_km_cents) +
         pallets * price_per_pallet_cents
+    # Keep monetary values in cents to avoid floating-point currency totals.
     return CostQuote(cents, "EUR", Float64(distance_km), Int(pallets))
 end
