@@ -12,6 +12,17 @@
 The project is a collaborative logistics platform designed to help companies book and share loading vehicles more efficiently. Users can request vehicle capacity by providing details such as the number of pallets, destination, goods type, and pickup and delivery time windows. The system checks whether an existing vehicle has sufficient unused capacity and whether the shipment can be added to its route. If a suitable match is found, the user can share the available capacity; otherwise, a new vehicle can be booked. The platform supports different user roles, including clients, drivers, administrators, and vehicle operators, with access to features based on their roles. By combining shipments and making better use of available vehicle capacity, the system aims to reduce unnecessary trips and transportation costs while improving logistics efficiency.
 <!-- DESCRIBE PROJECT PURPOSE ABOVE  -->
 
+## Features × Developers
+
+| Feature / responsibility | Developer(s) |
+|---|---|
+| Feasibility checks for Company B bookings | Luh Gede Mirah Semarandhanu, Rishi Ram |
+| Fetch distance API research and route distance integration | Luh Gede Mirah Semarandhanu, Rishi Ram |
+| Detour calculations | Rishi Ram |
+| Vehicle flow, add/get operations, and authentication | Rishi Harpreet Singh Jagdev |
+| Cost calculation, business flow, market research, and pricing | Valeria Rendon Corredor |
+| Technical architecture, database design, menu flow, and agile task coordination | Arth Gupta |
+
 ## Getting started
 
 <!-- DO NOT EDIT BELOW -->
